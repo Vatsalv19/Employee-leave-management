@@ -9,6 +9,7 @@ export default function Register() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", phone: "", departmentId: "" });
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
   function validate() {
     const e = {};
@@ -20,12 +21,16 @@ export default function Register() {
     return e;
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
-    const user = register(form);
+
+    setLoading(true);
+    const user = await register(form);
+    setLoading(false);
+
     if (user) navigate("/login");
   }
 
@@ -86,8 +91,8 @@ export default function Register() {
             </select>
             {errors.departmentId && <p className="mt-1 text-xs text-rose-400">{errors.departmentId}</p>}
           </div>
-          <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2">
-            <UserPlus className="w-4 h-4" /> Create Account
+          <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
+            <UserPlus className="w-4 h-4" /> {loading ? "Creating account..." : "Create Account"}
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-theme-secondary">

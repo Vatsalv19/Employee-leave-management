@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useApp } from "../context/AppContext";
-import { Mail, Lock, LogIn, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, LogIn, Eye, EyeOff, AlertTriangle } from "lucide-react";
 
 export default function Login() {
   const { login } = useApp();
@@ -10,34 +10,25 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState(null);
 
-  const demoUsers = [
-    { label: "Employee", email: "vatsal@company.com", pass: "password123" },
-    { label: "Manager", email: "rahul@company.com", pass: "password123" },
-    { label: "Admin", email: "admin@company.com", pass: "admin123" },
-  ];
-
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      const user = login(email, password);
-      if (user) {
-        navigate(user.role === "admin" ? "/admin" : user.role === "manager" ? "/manager" : "/employee");
-      }
-      setLoading(false);
-    }, 400);
-  }
+    setAuthError(null);
 
-  function quickLogin(demo) {
-    setEmail(demo.email);
-    setPassword(demo.pass);
-    setTimeout(() => {
-      const user = login(demo.email, demo.pass);
+    try {
+      const user = await login(email, password);
       if (user) {
         navigate(user.role === "admin" ? "/admin" : user.role === "manager" ? "/manager" : "/employee");
       }
-    }, 200);
+    } catch (error) {
+      if (error?.message?.includes("CONFIGURATION_NOT_FOUND") || error?.code === "auth/configuration-not-found") {
+        setAuthError("firebase-auth");
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -59,6 +50,29 @@ export default function Login() {
 
         {/* Login Form */}
         <div className="glass-card rounded-2xl p-6">
+          {/* Firebase Auth Warning */}
+          {authError === "firebase-auth" && (
+            <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-amber-400">Firebase Auth Not Enabled</p>
+                  <p className="text-xs text-amber-300/80 mt-1">
+                    Please enable Email/Password sign-in in Firebase Console, then register a new account.
+                  </p>
+                  <a 
+                    href="https://console.firebase.google.com/project/employee-leave-managemen-6d86c/authentication/providers" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-block mt-2 text-xs text-amber-400 underline hover:text-amber-300"
+                  >
+                    Open Firebase Console →
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
           <h2 className="mb-1 text-lg font-semibold text-theme-primary">Sign In</h2>
           <p className="mb-6 text-sm text-theme-secondary">Enter your credentials to continue</p>
 
@@ -101,23 +115,11 @@ export default function Login() {
             </button>
           </form>
 
-          {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-theme" /></div>
-            <div className="relative flex justify-center text-xs"><span className="bg-theme-surface-light px-3 text-theme-muted">Quick Login</span></div>
-          </div>
-
-          {/* Demo Users */}
-          <div className="grid grid-cols-3 gap-2">
-            {demoUsers.map((d) => (
-              <button
-                key={d.label}
-                onClick={() => quickLogin(d)}
-                className="rounded-xl border border-theme px-3 py-2.5 text-xs font-medium text-theme-secondary transition-all hover:border-primary-500/30 hover:bg-primary-500/5 hover:text-primary-400"
-              >
-                {d.label}
-              </button>
-            ))}
+          {/* Info about registration */}
+          <div className="mt-4 rounded-lg bg-primary-500/5 border border-primary-500/20 px-3 py-2">
+            <p className="text-xs text-theme-muted text-center">
+              First time? <Link to="/register" className="text-primary-400 font-medium hover:text-primary-300">Create an account</Link> to get started.
+            </p>
           </div>
         </div>
 
