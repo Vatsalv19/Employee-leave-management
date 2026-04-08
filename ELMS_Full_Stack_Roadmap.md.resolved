@@ -1,0 +1,1263 @@
+# 🏢 ELMS — Employee Leave Management System
+# Full-Stack Production Roadmap & Deep Analysis
+
+> **Version**: 1.0 · **Date**: March 27, 2026 · **Author**: AI Architect  
+> **Status**: Discussion / Planning Phase — No code changes made
+
+---
+
+## Table of Contents
+
+1. [Current Codebase Deep Analysis](#1-current-codebase-deep-analysis)
+2. [Architecture Overview — Current vs Target](#2-architecture-overview--current-vs-target)
+3. [Backend Design & API Blueprint](#3-backend-design--api-blueprint)
+4. [Database Schema Design](#4-database-schema-design)
+5. [Frontend Enhancements Roadmap](#5-frontend-enhancements-roadmap)
+6. [New Features — Full Feature Catalog](#6-new-features--full-feature-catalog)
+7. [AI & ML Integration](#7-ai--ml-integration)
+8. [Security & Production Hardening](#8-security--production-hardening)
+9. [DevOps, CI/CD & Deployment](#9-devops-cicd--deployment)
+10. [Testing Strategy](#10-testing-strategy)
+11. [Phase-wise Implementation Plan](#11-phase-wise-implementation-plan)
+12. [File & Folder Structure — Full Stack](#12-file--folder-structure--full-stack)
+13. [Tech Stack Summary](#13-tech-stack-summary)
+
+---
+
+## 1. Current Codebase Deep Analysis
+
+### 1.1 Project Identity
+
+| Field | Value |
+|-------|-------|
+| **Project Name** | ELMS — Employee Leave Management System |
+| **Current Stack** | React 19, Vite 8, Tailwind CSS 4, React Router 7 |
+| **Architecture** | Frontend-only SPA with mock data |
+| **Persistence** | `localStorage` (no database) |
+| **Authentication** | Simulated (user-selector, no password/JWT) |
+| **Build Tool** | Vite 8 with React Compiler (Babel plugin) |
+| **Deployment** | None (dev server only) |
+
+### 1.2 Current File Inventory
+
+```
+project/
+├── index.html                          # Entry HTML — title set to "ELMS"
+├── package.json                        # React 19, react-router-dom 7, Tailwind 4
+├── vite.config.js                      # Vite + React + Babel (React Compiler) + Tailwind
+├── src/
+│   ├── main.jsx                        # React root mount with StrictMode
+│   ├── App.jsx                         # Router, ProtectedRoute, AuthRoute, DashboardLayout
+│   ├── index.css                       # Tailwind + custom theme + glassmorphism utilities
+│   ├── context/
+│   │   └── AppContext.jsx              # Global state: auth, leaves, toasts, localStorage
+│   ├── data/
+│   │   └── mockData.js                 # 3 users, 7 leave types, 5 sample leave requests
+│   ├── components/
+│   │   ├── Navbar.jsx                  # Top bar with branding, user info, logout
+│   │   ├── Sidebar.jsx                 # Left nav with role-based links
+│   │   ├── DashboardCards.jsx          # Stats cards (total/used/remaining leaves)
+│   │   ├── LeaveForm.jsx               # Leave application form with validation
+│   │   ├── LeaveTable.jsx              # Leave list with filters, search, actions
+│   │   └── Toast.jsx                   # Notification toast system
+│   ├── pages/
+│   │   ├── Login.jsx                   # User selection login (no password)
+│   │   ├── EmployeeDashboard.jsx       # Employee home: cards + leave history
+│   │   └── AdminDashboard.jsx          # Admin home: stats + all requests + approve/reject
+│   └── assets/
+│       ├── hero.png
+│       ├── react.svg
+│       └── vite.svg
+```
+
+### 1.3 What Works Today
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Mock Login (user selector) | ✅ Working | No password, just select profile |
+| Role-based Routing | ✅ Working | Admin → `/admin`, Employee → `/employee` |
+| Protected Routes | ✅ Working | Redirects based on auth/role |
+| Leave Application Form | ✅ Working | Validates type, dates, reason |
+| Leave Balance Cards | ✅ Working | Total, Used, Remaining with progress bars |
+| Admin Approve/Reject | ✅ Working | Changes status in-memory + localStorage |
+| Leave History Table | ✅ Working | Filter by status, search by name/type/reason |
+| Toast Notifications | ✅ Working | Success/Error/Info with auto-dismiss |
+| Dark Theme + Glassmorphism | ✅ Working | Premium look with animations |
+| localStorage Persistence | ✅ Working | Survives page refresh |
+
+### 1.4 Critical Gaps for Production
+
+> [!CAUTION]
+> The current project is a **UI prototype only**. Below is everything missing to ship to market.
+
+| Gap | Severity | Impact |
+|-----|----------|--------|
+| **No Backend/API** | 🔴 Critical | Data lives in browser only, no persistence across devices |
+| **No Real Authentication** | 🔴 Critical | Anyone can log in as any user, no passwords or tokens |
+| **No Database** | 🔴 Critical | localStorage is volatile and per-browser |
+| **No Authorization Middleware** | 🔴 Critical | API endpoints can be called by anyone |
+| **No Input Sanitization** | 🔴 Critical | XSS and injection attack vectors |
+| **No Password Hashing** | 🔴 Critical | Passwords must never be stored in plain text |
+| **No Email/Notifications** | 🟡 High | Users have no way to get notified outside the app |
+| **No Employee Management** | 🟡 High | Can't add/remove/edit employees |
+| **No Department/Team Structure** | 🟡 High | Flat structure, no reporting hierarchy |
+| **No Leave Policies Engine** | 🟡 High | Hardcoded leave types, no accrual/carry rules |
+| **No Calendar View** | 🟠 Medium | No visual representation of leave schedules |
+| **No File Attachments** | 🟠 Medium | Can't upload medical certificates etc. |
+| **No Pagination** | 🟠 Medium | Tables will crash with 1000+ records |
+| **No Testing** | 🟡 High | Zero unit/integration/e2e tests |
+| **No CI/CD** | 🟡 High | No automated build/deploy pipeline |
+| **No Error Boundaries** | 🟠 Medium | App crashes on any render error |
+| **No Logging/Monitoring** | 🟠 Medium | No observability in production |
+| **No Mobile Responsiveness** | 🟠 Medium | Sidebar layout breaks on mobile |
+| **No Internationalization (i18n)** | 🟢 Low | English only |
+| **No Accessibility (a11y)** | 🟢 Low | Missing ARIA labels, keyboard nav |
+
+---
+
+## 2. Architecture Overview — Current vs Target
+
+### Current Architecture (Frontend Only)
+
+```mermaid
+graph LR
+    A[Browser] --> B[React SPA]
+    B --> C[localStorage]
+    B --> D[mockData.js]
+```
+
+### Target Architecture (Full Stack + AI)
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        A[React SPA] --> B[Axios / React Query]
+    end
+    
+    subgraph "API Gateway"
+        C[Nginx Reverse Proxy + SSL]
+    end
+    
+    subgraph "Backend Layer"
+        D[Node.js + Express]
+        E[JWT Auth Middleware]
+        F[RBAC Middleware]
+        G[Rate Limiter]
+        H[Request Validator]
+    end
+    
+    subgraph "AI Services"
+        I[Leave Prediction Engine]
+        J[AI Chatbot - Gemini API]
+        K[Anomaly Detection]
+    end
+    
+    subgraph "Data Layer"
+        L[(PostgreSQL)]
+        M[(Redis Cache)]
+        N[File Storage - S3/MinIO]
+    end
+    
+    subgraph "Infrastructure"
+        O[Docker + Docker Compose]
+        P[GitHub Actions CI/CD]
+        Q[Prometheus + Grafana]
+        R[ELK Stack Logging]
+    end
+    
+    B --> C --> D
+    D --> E --> F --> G --> H
+    D --> I
+    D --> J
+    D --> K
+    D --> L
+    D --> M
+    D --> N
+    O --> D
+    P --> O
+    Q --> D
+    R --> D
+```
+
+---
+
+## 3. Backend Design & API Blueprint
+
+### 3.1 Tech Stack
+
+| Layer | Technology | Why |
+|-------|-----------|-----|
+| Runtime | Node.js 22 LTS | Same language as frontend, huge ecosystem |
+| Framework | Express.js 5 | Battle-tested, flexible, lightweight |
+| ORM | Prisma 6 | Type-safe, auto-generated queries, migrations |
+| Database | PostgreSQL 16 | Relational, ACID, best for structured leave data |
+| Cache | Redis 7 | Session cache, rate limiting, real-time |
+| Auth | JWT (jsonwebtoken) + bcrypt | Industry standard, stateless auth |
+| Validation | Zod | Schema validation matching TypeScript types |
+| File Upload | Multer + S3/MinIO | Medical certs, documents |
+| Email | Nodemailer + SendGrid | Transactional emails |
+| WebSocket | Socket.io | Real-time leave status notifications |
+| AI | Google Gemini API | Smart leave analysis, chatbot |
+
+### 3.2 REST API Endpoints
+
+#### Auth
+```
+POST   /api/auth/register            # Employee self-registration
+POST   /api/auth/login               # Login with email+password → JWT
+POST   /api/auth/refresh             # Refresh expired JWT
+POST   /api/auth/logout              # Invalidate refresh token
+POST   /api/auth/forgot-password     # Send password reset email
+POST   /api/auth/reset-password      # Reset password with token
+GET    /api/auth/me                  # Get current user profile
+```
+
+#### Users / Employees
+```
+GET    /api/users                     # List all employees (admin)
+GET    /api/users/:id                 # Get employee by ID
+POST   /api/users                     # Create employee (admin)
+PUT    /api/users/:id                 # Update employee (admin/self)
+DELETE /api/users/:id                 # Soft-delete employee (admin)
+GET    /api/users/:id/leaves          # Get employee's leave history
+GET    /api/users/:id/balance         # Get employee's leave balance
+PATCH  /api/users/:id/avatar          # Upload profile picture
+```
+
+#### Departments
+```
+GET    /api/departments               # List all departments
+POST   /api/departments               # Create department (admin)
+PUT    /api/departments/:id           # Update department (admin)
+DELETE /api/departments/:id           # Delete department (admin)
+GET    /api/departments/:id/employees # List employees in department
+```
+
+#### Leave Requests
+```
+GET    /api/leaves                    # List leaves (filtered by role)
+GET    /api/leaves/:id                # Get leave details
+POST   /api/leaves                    # Submit leave request
+PUT    /api/leaves/:id                # Edit leave (if still pending)
+DELETE /api/leaves/:id                # Cancel leave (if still pending)
+PATCH  /api/leaves/:id/approve        # Approve leave (manager/admin)
+PATCH  /api/leaves/:id/reject         # Reject leave + reason (manager/admin)
+GET    /api/leaves/calendar           # Get calendar view data
+GET    /api/leaves/export             # Export to CSV/PDF
+```
+
+#### Leave Policies
+```
+GET    /api/policies                  # List all leave policies
+POST   /api/policies                  # Create policy (admin)
+PUT    /api/policies/:id              # Update policy (admin)
+DELETE /api/policies/:id              # Delete policy (admin)
+GET    /api/policies/:id/rules        # Get policy rules (accrual, carry)
+```
+
+#### Holidays
+```
+GET    /api/holidays                  # List company holidays
+POST   /api/holidays                  # Add holiday (admin)
+PUT    /api/holidays/:id              # Update holiday (admin)
+DELETE /api/holidays/:id              # Delete holiday (admin)
+```
+
+#### Notifications
+```
+GET    /api/notifications             # User's notifications
+PATCH  /api/notifications/:id/read    # Mark as read
+PATCH  /api/notifications/read-all    # Mark all as read
+DELETE /api/notifications/:id         # Delete notification
+```
+
+#### Reports / Analytics
+```
+GET    /api/reports/summary           # Company-wide leave summary
+GET    /api/reports/department/:id     # Department-wise report
+GET    /api/reports/trend             # Leave trend over time
+GET    /api/reports/balance           # All employee balances
+GET    /api/reports/export            # Export report (CSV/PDF)
+```
+
+#### AI Endpoints
+```
+POST   /api/ai/predict-peak           # Predict peak leave periods
+POST   /api/ai/suggest-dates          # Suggest optimal leave dates
+POST   /api/ai/chatbot                # AI assistant for leave queries
+GET    /api/ai/anomalies              # Detect unusual leave patterns
+GET    /api/ai/insights               # AI-generated leave insights
+```
+
+---
+
+## 4. Database Schema Design
+
+### 4.1 Entity-Relationship Diagram
+
+```mermaid
+erDiagram
+    USERS ||--o{ LEAVE_REQUESTS : submits
+    USERS ||--o{ NOTIFICATIONS : receives
+    USERS }o--|| DEPARTMENTS : belongs_to
+    USERS }o--|| ROLES : has
+    DEPARTMENTS ||--o{ USERS : contains
+    LEAVE_TYPES ||--o{ LEAVE_REQUESTS : categorizes
+    LEAVE_TYPES ||--o{ LEAVE_BALANCES : defines
+    USERS ||--o{ LEAVE_BALANCES : has
+    LEAVE_POLICIES ||--o{ LEAVE_TYPES : governs
+    HOLIDAYS ||--o{ LEAVE_REQUESTS : affects
+
+    USERS {
+        uuid id PK
+        string email UK
+        string password_hash
+        string first_name
+        string last_name
+        string phone
+        string avatar_url
+        uuid department_id FK
+        uuid role_id FK
+        uuid manager_id FK
+        date joined_date
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ROLES {
+        uuid id PK
+        string name UK
+        jsonb permissions
+    }
+
+    DEPARTMENTS {
+        uuid id PK
+        string name UK
+        string description
+        uuid head_id FK
+        boolean is_active
+    }
+
+    LEAVE_TYPES {
+        uuid id PK
+        string name UK
+        string description
+        string color
+        int default_days
+        boolean is_paid
+        boolean requires_document
+        boolean is_active
+    }
+
+    LEAVE_REQUESTS {
+        uuid id PK
+        uuid user_id FK
+        uuid leave_type_id FK
+        date start_date
+        date end_date
+        float total_days
+        string reason
+        string status
+        uuid approved_by FK
+        string rejection_reason
+        string[] attachments
+        timestamp applied_at
+        timestamp actioned_at
+        timestamp created_at
+    }
+
+    LEAVE_BALANCES {
+        uuid id PK
+        uuid user_id FK
+        uuid leave_type_id FK
+        int year
+        float total_allocated
+        float used
+        float pending
+        float carried_over
+        float remaining
+    }
+
+    LEAVE_POLICIES {
+        uuid id PK
+        string name
+        jsonb accrual_rules
+        jsonb carry_over_rules
+        jsonb encashment_rules
+        boolean is_default
+    }
+
+    HOLIDAYS {
+        uuid id PK
+        string name
+        date date
+        string type
+        boolean is_optional
+        int year
+    }
+
+    NOTIFICATIONS {
+        uuid id PK
+        uuid user_id FK
+        string type
+        string title
+        string message
+        jsonb metadata
+        boolean is_read
+        timestamp created_at
+    }
+
+    AUDIT_LOG {
+        uuid id PK
+        uuid user_id FK
+        string action
+        string entity_type
+        uuid entity_id
+        jsonb old_values
+        jsonb new_values
+        string ip_address
+        timestamp created_at
+    }
+```
+
+---
+
+## 5. Frontend Enhancements Roadmap
+
+### 5.1 Current Frontend Improvements Needed
+
+| Area | Current State | Target State |
+|------|--------------|--------------|
+| **State Management** | Single `AppContext` with everything | Split contexts OR use Zustand/TanStack Query |
+| **API Layer** | Mock data imports | Axios instance + React Query for caching/mutations |
+| **Error Handling** | None | React Error Boundaries + global error handler |
+| **Loading States** | None | Skeleton screens + Suspense boundaries |
+| **Forms** | Manual validation | React Hook Form + Zod schemas |
+| **Routing** | Basic 3 routes | 15+ routes with lazy loading |
+| **Mobile** | Sidebar broken | Responsive sidebar (hamburger on mobile) |
+| **Tables** | No pagination | Server-side pagination + sorting + column resize |
+| **Theme** | Dark only | Dark + Light theme toggle |
+| **Accessibility** | None | ARIA labels, keyboard navigation, screen reader |
+| **Icons** | Inline SVGs | Lucide React icon library |
+| **Dates** | Raw strings | date-fns / dayjs formatting |
+| **Charts** | None | Recharts / Chart.js for analytics |
+| **File Upload** | None | react-dropzone for document upload |
+
+### 5.2 New Pages to Add
+
+| Page | Route | Role | Description |
+|------|-------|------|-------------|
+| **Landing Page** | `/` | Public | Marketing page with features, pricing |
+| **Registration** | `/register` | Public | Employee self-registration form |
+| **Forgot Password** | `/forgot-password` | Public | Password reset request |
+| **Employee Profile** | `/employee/profile` | Employee | Edit personal info, photo |
+| **Leave Calendar** | `/employee/calendar` | Employee | Visual calendar of leaves |
+| **Leave Details** | `/employee/leaves/:id` | Employee | Detailed leave view |
+| **Team Calendar** | `/admin/calendar` | Admin | Team-wide leave calendar |
+| **Employee Mgmt** | `/admin/employees` | Admin | CRUD employees |
+| **Employee Detail** | `/admin/employees/:id` | Admin | Employee profile + history |
+| **Leave Policies** | `/admin/policies` | Admin | Configure leave rules |
+| **Holidays** | `/admin/holidays` | Admin | Manage company holidays |
+| **Department Mgmt** | `/admin/departments` | Admin | CRUD departments |
+| **Reports** | `/admin/reports` | Admin | Analytics & reporting |
+| **Settings** | `/admin/settings` | Admin | System-wide settings |
+| **Notifications** | `/notifications` | All | Notification center |
+| **AI Assistant** | `/assistant` | All | AI chatbot + insights |
+| **Manager Dashboard** | `/manager` | Manager | Team leaves overview |
+
+---
+
+## 6. New Features — Full Feature Catalog
+
+### 🔐 Phase 1: Core Foundation (Weeks 1–3)
+
+| # | Feature | Priority | Description |
+|---|---------|----------|-------------|
+| 1 | **Real Authentication** | 🔴 P0 | Email/password login, JWT tokens, bcrypt hashing |
+| 2 | **User Registration** | 🔴 P0 | Self-service registration with email verification |
+| 3 | **Password Reset** | 🔴 P0 | Forgot password flow via email |
+| 4 | **PostgreSQL Database** | 🔴 P0 | Replace localStorage with real database |
+| 5 | **API Layer (Express)** | 🔴 P0 | RESTful API with proper error handling |
+| 6 | **Prisma ORM + Migrations** | 🔴 P0 | Type-safe DB access + version-controlled schema |
+| 7 | **Role-Based Access Control** | 🔴 P0 | Admin, Manager, Employee roles with permissions |
+| 8 | **Input Validation (Zod)** | 🔴 P0 | Server-side request validation |
+| 9 | **React Query Integration** | 🟡 P1 | Replace context-based data fetching |
+| 10 | **Error Boundaries** | 🟡 P1 | Graceful error handling in UI |
+
+### 📋 Phase 2: Leave Management Upgrade (Weeks 4–6)
+
+| # | Feature | Priority | Description |
+|---|---------|----------|-------------|
+| 11 | **Leave Policy Engine** | 🔴 P0 | Configurable accrual, carry-over, encashment rules |
+| 12 | **Leave Balance Tracking** | 🔴 P0 | Per-type balance calculation per year |
+| 13 | **Multi-level Approval** | 🟡 P1 | Manager → HR → Admin approval chain |
+| 14 | **Leave Calendar View** | 🟡 P1 | Visual calendar with team overlaps |
+| 15 | **Holiday Management** | 🟡 P1 | Company holidays integrated with leave calc |
+| 16 | **Half-day / Hourly Leave** | 🟡 P1 | Support partial-day leaves |
+| 17 | **Document Attachments** | 🟡 P1 | Upload medical certificates, documents |
+| 18 | **Leave Comments/Notes** | 🟠 P2 | Manager can add notes when approving/rejecting |
+| 19 | **Comp-Off Management** | 🟠 P2 | Track comp-off earned from overtime |
+| 20 | **Auto-approve Rules** | 🟠 P2 | Auto-approve leaves under X days |
+
+### 👥 Phase 3: People & Organization (Weeks 7–9)
+
+| # | Feature | Priority | Description |
+|---|---------|----------|-------------|
+| 21 | **Employee CRUD** | 🔴 P0 | Admin can add/edit/deactivate employees |
+| 22 | **Department Management** | 🟡 P1 | Create departments, assign heads |
+| 23 | **Reporting Hierarchy** | 🟡 P1 | Manager → subordinates tree structure |
+| 24 | **Employee Profile** | 🟡 P1 | Edit personal info, profile picture |
+| 25 | **Bulk Import** | 🟠 P2 | CSV upload to bulk-create employees |
+| 26 | **Employee Directory** | 🟠 P2 | Searchable employee directory |
+| 27 | **Onboarding Flow** | 🟠 P2 | Guided setup for new employees |
+| 28 | **Employee Timeline** | 🟢 P3 | Activity timeline per employee |
+
+### 📊 Phase 4: Analytics, Notifications & AI (Weeks 10–13)
+
+| # | Feature | Priority | Description |
+|---|---------|----------|-------------|
+| 29 | **Email Notifications** | 🔴 P0 | Leave submitted/approved/rejected emails |
+| 30 | **In-App Notifications** | 🟡 P1 | Real-time notification center |
+| 31 | **Push Notifications** | 🟠 P2 | Browser push for leave status changes |
+| 32 | **Analytics Dashboard** | 🟡 P1 | Charts: dept-wise, type-wise, trends |
+| 33 | **Export Reports** | 🟡 P1 | CSV/PDF export of leave data |
+| 34 | **AI Leave Predictor** | 🟠 P2 | Predict peak leave periods |
+| 35 | **AI Chatbot Assistant** | 🟠 P2 | NLP-based leave queries ("How many leaves left?") |
+| 36 | **AI Anomaly Detection** | 🟢 P3 | Flag unusual leave patterns |
+| 37 | **AI Smart Suggestions** | 🟢 P3 | Suggest best dates for leave to avoid team clashes |
+| 38 | **Audit Trail** | 🟡 P1 | Full change log (who approved what, when) |
+
+### 🚀 Phase 5: Production Polish (Weeks 14–16)
+
+| # | Feature | Priority | Description |
+|---|---------|----------|-------------|
+| 39 | **Dark/Light Theme Toggle** | 🟡 P1 | System preference + manual toggle |
+| 40 | **PWA Support** | 🟠 P2 | Installable on mobile, offline capable |
+| 41 | **Internationalization** | 🟢 P3 | Multi-language support (i18n) |
+| 42 | **Accessibility (a11y)** | 🟡 P1 | WCAG 2.1 AA compliance |
+| 43 | **Rate Limiting** | 🔴 P0 | Prevent API abuse |
+| 44 | **Helmet + CORS** | 🔴 P0 | Security headers |
+| 45 | **Docker Deployment** | 🟡 P1 | Containerized full-stack deployment |
+| 46 | **CI/CD Pipeline** | 🟡 P1 | GitHub Actions: lint → test → build → deploy |
+| 47 | **Monitoring (Prometheus)** | 🟠 P2 | Metrics, alerting, uptime checks |
+| 48 | **Logging (Winston + ELK)** | 🟠 P2 | Structured logging |
+| 49 | **Landing/Marketing Page** | 🟢 P3 | Public-facing product showcase |
+| 50 | **Multi-tenancy** | 🟢 P3 | Support multiple organizations |
+
+---
+
+## 7. AI & ML Integration
+
+### 7.1 AI Features Blueprint
+
+#### 🤖 Feature 1: AI Chatbot Assistant (Google Gemini API)
+
+**What it does**: Employees can ask natural language questions about their leaves.
+
+**Example interactions:**
+- "How many sick leaves do I have left?"
+- "Can I take leave on March 28?"
+- "Show me my pending requests"
+- "What's the company holiday in April?"
+
+**Implementation:**
+```
+Frontend (Chat UI) → POST /api/ai/chatbot → 
+  { message, userId, context } →
+  Gemini API (with system prompt + user leave data) →
+  Structured response → Display in chat widget
+```
+
+**Backend Logic:**
+1. Receive user message
+2. Fetch user's leave data, balances, company holidays from DB
+3. Build system prompt with context: user's data, company policies, current balances
+4. Call Gemini API with `gemini-2.0-flash` model
+5. Parse response and return to frontend
+6. Optionally execute actions (e.g., "Apply for sick leave tomorrow" → create draft)
+
+#### 📈 Feature 2: Leave Prediction Engine
+
+**What it does**: Predict peak leave periods based on historical data.
+
+**Algorithm:**
+1. Aggregate all leaves by month/week for past 2 years
+2. Use time-series analysis (moving average + seasonal decomposition)
+3. Identify patterns: holiday season rushes, Monday/Friday trends, flu season
+4. Generate predictions for upcoming months
+5. Provide staffing alerts to admins
+
+**Gemini API approach:**
+- Feed aggregated leave data as structured JSON
+- Prompt: "Based on this leave pattern data, predict the likely peak leave weeks for the next quarter and explain why"
+- Display predictions on Admin Analytics dashboard
+
+#### 🔍 Feature 3: Anomaly Detection
+
+**What it does**: Flags unusual leave patterns that may need attention.
+
+**Detection Signals:**
+- Sudden spike in leave frequency for an employee
+- Consistently taking leaves on specific days (e.g., every Monday)
+- Exceeding department average leave rate
+- Leave clustering around weekends/holidays (suspicious patterns)
+- Extended continuous leave without prior patterns
+
+**Implementation:**
+- Calculate statistical baselines per employee and department
+- Use z-score or IQR method to flag outliers
+- Optionally use Gemini API for natural language explanation of anomalies
+- Show anomaly alerts on Admin Dashboard
+
+#### 💡 Feature 4: Smart Leave Suggestions
+
+**What it does**: Helps employees pick optimal leave dates.
+
+**Logic:**
+1. Check team members who are already on leave → avoid overlaps
+2. Check company holidays → suggest "bridge" leaves around long weekends
+3. Check project deadlines (if integrated) → warn about critical periods
+4. Suggest: "Take leave on Friday March 27 to get a 3-day weekend. Only 1 other team member is on leave that day."
+
+---
+
+## 8. Security & Production Hardening
+
+### 8.1 Security Checklist
+
+| # | Item | Implementation |
+|---|------|---------------|
+| 1 | **Password Hashing** | bcrypt with salt rounds ≥ 12 |
+| 2 | **JWT Tokens** | Short-lived access (15min) + long-lived refresh (7d) |
+| 3 | **HTTPS Only** | TLS/SSL via Nginx or cloud provider |
+| 4 | **Helmet.js** | Set security headers (CSP, XSS protection, etc.) |
+| 5 | **CORS** | Whitelist only frontend origin |
+| 6 | **Rate Limiting** | express-rate-limit: 100 req/15min per IP |
+| 7 | **Input Validation** | Zod schemas on every endpoint |
+| 8 | **SQL Injection Prevention** | Prisma parameterized queries (built-in) |
+| 9 | **XSS Prevention** | React auto-escapes + DOMPurify for user HTML |
+| 10 | **CSRF Protection** | SameSite cookies + CSRF tokens |
+| 11 | **File Upload Validation** | Type check, size limit (5MB), virus scan |
+| 12 | **Environment Variables** | dotenv + never commit `.env` files |
+| 13 | **Audit Logging** | Log every state-changing action |
+| 14 | **Account Lockout** | Lock after 5 failed login attempts |
+| 15 | **Session Management** | Redis-backed token blacklisting on logout |
+
+### 8.2 Performance Optimization
+
+| # | Optimization | Approach |
+|---|-------------|----------|
+| 1 | **Query Optimization** | Prisma `select` / `include` — fetch only needed fields |
+| 2 | **Redis Caching** | Cache frequently read data (policies, holidays, balances) |
+| 3 | **Database Indexing** | Index on `user_id`, `status`, `leave_type_id`, `created_at` |
+| 4 | **Connection Pooling** | Prisma connection pool (default) |
+| 5 | **Frontend Code Splitting** | React.lazy + Suspense per route |
+| 6 | **Image Optimization** | WebP format, lazy loading, CDN |
+| 7 | **API Response Compression** | gzip via Nginx or compression middleware |
+| 8 | **Bundle Analysis** | Vite bundle analyzer to find bloat |
+
+---
+
+## 9. DevOps, CI/CD & Deployment
+
+### 9.1 Docker Setup
+
+```yaml
+# docker-compose.yml (target)
+services:
+  frontend:
+    build: ./client
+    ports: ["3000:3000"]
+    depends_on: [backend]
+
+  backend:
+    build: ./server
+    ports: ["5000:5000"]
+    environment:
+      DATABASE_URL: postgresql://user:pass@db:5432/elms
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    depends_on: [db, redis]
+
+  db:
+    image: postgres:16-alpine
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    environment:
+      POSTGRES_DB: elms
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+
+  redis:
+    image: redis:7-alpine
+
+  nginx:
+    image: nginx:alpine
+    ports: ["80:80", "443:443"]
+    volumes: ["./nginx.conf:/etc/nginx/nginx.conf"]
+    depends_on: [frontend, backend]
+
+volumes:
+  pgdata:
+```
+
+### 9.2 CI/CD Pipeline (GitHub Actions)
+
+```
+Trigger: Push to main or PR
+│
+├── 🔍 Lint (ESLint + Prettier)
+├── 🧪 Unit Tests (Vitest)
+├── 🧪 Integration Tests (Supertest + Test DB)
+├── 🏗️ Build (Vite production build)
+├── 🐳 Docker Build + Push to Registry
+├── 🚀 Deploy to Staging (auto)
+├── ✅ E2E Tests on Staging (Playwright)
+└── 🚀 Deploy to Production (manual approval)
+```
+
+### 9.3 Deployment Options
+
+| Environment | Option | Cost Estimate |
+|------------|--------|---------------|
+| **Free Tier** | Vercel (frontend) + Railway (backend) + Neon (DB) | $0/mo |
+| **Budget** | DigitalOcean App Platform | $12-25/mo |
+| **Mid-range** | AWS ECS + RDS + ElastiCache | $50-100/mo |
+| **Enterprise** | Kubernetes (EKS/GKE) | $200+/mo |
+
+---
+
+## 10. Testing Strategy
+
+### 10.1 Testing Pyramid
+
+| Layer | Tool | Coverage Target | What to Test |
+|-------|------|----------------|--------------|
+| **Unit Tests** | Vitest | 80% | Utility functions, validators, hooks |
+| **Component Tests** | Vitest + Testing Library | 70% | React components in isolation |
+| **API Integration Tests** | Supertest + Vitest | 90% | Every API endpoint |
+| **E2E Tests** | Playwright | Key flows | Login → Apply → Approve → Verify |
+| **Performance Tests** | k6 / Artillery | Baseline | API response times under load |
+
+### 10.2 Key Test Scenarios
+
+```
+Auth:
+  ✓ Register with valid data → 201
+  ✓ Register with duplicate email → 409
+  ✓ Login with correct credentials → 200 + JWT
+  ✓ Login with wrong password → 401
+  ✓ Access protected route without JWT → 401
+  ✓ Access admin route as employee → 403
+  ✓ Refresh expired token → new tokens
+
+Leave Management:
+  ✓ Apply leave within balance → 201
+  ✓ Apply leave exceeding balance → 400
+  ✓ Apply overlapping leave → 400
+  ✓ Approve pending leave → status changes to Approved
+  ✓ Reject pending leave → status changes to Rejected
+  ✓ Edit pending leave → updated
+  ✓ Edit approved leave → 403
+  ✓ Manager approves own leave → 403
+  ✓ Leave balance decremented after approval
+  ✓ Notification sent on status change
+
+E2E Flows:
+  ✓ Employee Login → Apply Leave → See in Dashboard
+  ✓ Admin Login → View Pending → Approve → Employee sees updated status
+  ✓ Employee tries to access admin page → redirected
+  ✓ Full CRUD on employees (admin)
+  ✓ View analytics charts with data
+```
+
+---
+
+## 11. Phase-wise Implementation Plan
+
+### 📅 Phase 1: Core Backend + Auth (Weeks 1–3)
+
+**Week 1: Project Setup & Database**
+- [ ] Initialize backend with Express + TypeScript (optional) structure
+- [ ] Set up Prisma with PostgreSQL
+- [ ] Create all database migrations (users, roles, departments, leave_types)
+- [ ] Seed database with initial data (admin user, departments, leave types)
+- [ ] Set up environment variables and configs
+- [ ] Create Docker Compose for local development
+
+**Week 2: Auth & User Management**
+- [ ] Implement registration endpoint with email verification
+- [ ] Implement login endpoint with JWT access + refresh tokens
+- [ ] Implement password reset flow
+- [ ] Create auth middleware (JWT verification)
+- [ ] Create RBAC middleware (role-based permission checks)
+- [ ] Implement user CRUD endpoints (admin)
+- [ ] Set up Nodemailer for transactional emails
+
+**Week 3: Frontend Auth Integration**
+- [ ] Replace mock auth in frontend with real API calls
+- [ ] Add Axios instance with interceptors (auto-attach JWT, auto-refresh)
+- [ ] Implement React Query for server state management
+- [ ] Add login/register/forgot-password pages
+- [ ] Add loading/skeleton screens
+- [ ] Add Error Boundaries
+
+### 📅 Phase 2: Leave Management System (Weeks 4–6)
+
+**Week 4: Leave Core**
+- [ ] Leave CRUD API endpoints
+- [ ] Leave balance calculation service
+- [ ] Leave validation (overlap check, balance check, date validation)
+- [ ] Leave approval workflow (approve/reject with reason)
+- [ ] Connect frontend leave form to API
+- [ ] Connect frontend leave table to API with pagination
+
+**Week 5: Leave Enhancements**
+- [ ] Leave policy engine (accrual rules, carry-over, encashment)
+- [ ] Holiday management (CRUD + calendar integration)
+- [ ] Half-day / hourly leave support
+- [ ] Document attachment upload (multer + S3)
+- [ ] Leave calendar view (frontend with FullCalendar or custom)
+
+**Week 6: Notifications**
+- [ ] Email notifications on leave status changes
+- [ ] In-app notification system (database + API)
+- [ ] Real-time notifications via WebSocket (Socket.io)
+- [ ] Notification center UI (bell icon + dropdown + page)
+
+### 📅 Phase 3: People & Organization (Weeks 7–9)
+
+**Week 7: Department & Hierarchy**
+- [ ] Department CRUD (backend + frontend admin page)
+- [ ] Manager-subordinate relationship
+- [ ] Multi-level approval routing based on hierarchy
+- [ ] Department-scoped leave views
+
+**Week 8: Employee Management**
+- [ ] Employee directory page (search, filter, pagination)
+- [ ] Employee detail page (profile + leave history + balance)
+- [ ] Employee profile editing (self-service)
+- [ ] Bulk import via CSV upload
+- [ ] Profile picture upload
+
+**Week 9: Manager Role**
+- [ ] Manager dashboard (team overview)
+- [ ] Team calendar (who's on leave today)
+- [ ] Quick approve/reject from manager dashboard
+- [ ] Manager-specific reporting
+
+### 📅 Phase 4: Analytics & AI (Weeks 10–13)
+
+**Week 10: Analytics Dashboard**
+- [ ] Install Recharts for charting
+- [ ] Department-wise leave distribution (pie chart)
+- [ ] Leave type distribution (bar chart)
+- [ ] Monthly leave trends (line chart)
+- [ ] Top leave-takers table
+- [ ] Date range filter for all charts
+
+**Week 11: Reports & Export**
+- [ ] Report generation service (backend)
+- [ ] CSV export of leave data
+- [ ] PDF report generation (pdfkit or Puppeteer)
+- [ ] Scheduled report emails (weekly/monthly to admin)
+- [ ] Custom report builder (select columns, filters, date range)
+
+**Week 12: AI Integration**
+- [ ] Set up Gemini API client on backend
+- [ ] Build AI Chatbot endpoint with context injection
+- [ ] Create chatbot UI component (floating widget + full page)
+- [ ] Build leave prediction endpoint
+- [ ] Create prediction visualization on admin dashboard
+
+**Week 13: AI Advanced**
+- [ ] Anomaly detection service
+- [ ] Anomaly alerts on admin dashboard
+- [ ] Smart leave date suggestions
+- [ ] AI insights widget on employee dashboard
+- [ ] Audit trail implementation
+
+### 📅 Phase 5: Production & Polish (Weeks 14–16)
+
+**Week 14: Security & Performance**
+- [ ] Add Helmet.js, CORS, rate limiting
+- [ ] Implement Redis caching for policies/holidays
+- [ ] Add database indexes for performance
+- [ ] Frontend code splitting (React.lazy per route)
+- [ ] Bundle optimization (tree shaking, lazy imports)
+- [ ] Account lockout on failed attempts
+
+**Week 15: Testing & Quality**
+- [ ] Write unit tests for backend services (80% coverage)
+- [ ] Write API integration tests (90% coverage)
+- [ ] Write component tests for critical UI components
+- [ ] Write E2E tests for key user flows (Playwright)
+- [ ] Accessibility audit + fixes (WCAG 2.1 AA)
+- [ ] Set up dark/light theme toggle
+
+**Week 16: DevOps & Launch**
+- [ ] Production Dockerfiles (multi-stage builds)
+- [ ] Docker Compose for production
+- [ ] Nginx reverse proxy with SSL
+- [ ] GitHub Actions CI/CD pipeline
+- [ ] Prometheus metrics + Grafana dashboards
+- [ ] Winston structured logging
+- [ ] Health check endpoints
+- [ ] Deploy to production
+- [ ] Post-launch monitoring setup
+
+---
+
+## 12. File & Folder Structure — Full Stack
+
+### 12.1 Monorepo Structure (Recommended)
+
+```
+elms/
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                          # Lint + Test + Build
+│       └── deploy.yml                      # Docker build + Deploy
+│
+├── client/                                 ← FRONTEND (React)
+│   ├── public/
+│   │   ├── favicon.svg
+│   │   └── manifest.json                   # PWA manifest
+│   ├── src/
+│   │   ├── main.jsx                        # App entry
+│   │   ├── App.jsx                         # Router + providers
+│   │   ├── index.css                       # Theme + globals
+│   │   │
+│   │   ├── api/                            ← API CLIENT LAYER
+│   │   │   ├── axios.js                    # Axios instance + interceptors
+│   │   │   ├── auth.api.js                 # Auth API calls
+│   │   │   ├── users.api.js                # User API calls
+│   │   │   ├── leaves.api.js               # Leave API calls
+│   │   │   ├── departments.api.js          # Department API calls
+│   │   │   ├── holidays.api.js             # Holiday API calls
+│   │   │   ├── notifications.api.js        # Notification API calls
+│   │   │   ├── reports.api.js              # Reports API calls
+│   │   │   └── ai.api.js                   # AI API calls
+│   │   │
+│   │   ├── hooks/                          ← CUSTOM HOOKS
+│   │   │   ├── useAuth.js                  # Auth state hook
+│   │   │   ├── useLeaves.js                # React Query: leaves
+│   │   │   ├── useUsers.js                 # React Query: users
+│   │   │   ├── useNotifications.js         # React Query: notifications
+│   │   │   ├── useDebounce.js              # Debounce hook
+│   │   │   └── useMediaQuery.js            # Responsive breakpoints
+│   │   │
+│   │   ├── context/                        ← GLOBAL STATE
+│   │   │   ├── AuthContext.jsx             # Auth state + JWT management
+│   │   │   ├── ThemeContext.jsx             # Dark/Light toggle
+│   │   │   └── SocketContext.jsx            # WebSocket connection
+│   │   │
+│   │   ├── components/                     ← SHARED COMPONENTS
+│   │   │   ├── ui/                         # Base UI components
+│   │   │   │   ├── Button.jsx
+│   │   │   │   ├── Input.jsx
+│   │   │   │   ├── Select.jsx
+│   │   │   │   ├── Modal.jsx
+│   │   │   │   ├── Tooltip.jsx
+│   │   │   │   ├── Badge.jsx
+│   │   │   │   ├── Skeleton.jsx
+│   │   │   │   ├── Avatar.jsx
+│   │   │   │   ├── Card.jsx
+│   │   │   │   ├── Table.jsx              # Generic data table with pagination
+│   │   │   │   ├── EmptyState.jsx
+│   │   │   │   ├── ErrorFallback.jsx
+│   │   │   │   └── ConfirmDialog.jsx
+│   │   │   ├── layout/                    # Layout components
+│   │   │   │   ├── Navbar.jsx
+│   │   │   │   ├── Sidebar.jsx
+│   │   │   │   ├── DashboardLayout.jsx
+│   │   │   │   ├── AuthLayout.jsx
+│   │   │   │   └── Footer.jsx
+│   │   │   ├── leave/                     # Leave-specific components
+│   │   │   │   ├── LeaveForm.jsx
+│   │   │   │   ├── LeaveTable.jsx
+│   │   │   │   ├── LeaveCalendar.jsx
+│   │   │   │   ├── LeaveCard.jsx
+│   │   │   │   ├── LeaveStatusBadge.jsx
+│   │   │   │   └── LeaveBalanceCards.jsx
+│   │   │   ├── charts/                    # Chart components
+│   │   │   │   ├── DepartmentPieChart.jsx
+│   │   │   │   ├── LeaveTypesBarChart.jsx
+│   │   │   │   ├── MonthlyTrendChart.jsx
+│   │   │   │   └── BalanceOverview.jsx
+│   │   │   ├── notifications/
+│   │   │   │   ├── NotificationBell.jsx
+│   │   │   │   ├── NotificationDropdown.jsx
+│   │   │   │   └── NotificationItem.jsx
+│   │   │   ├── ai/
+│   │   │   │   ├── ChatWidget.jsx         # Floating chatbot widget
+│   │   │   │   ├── ChatMessage.jsx
+│   │   │   │   ├── PredictionCard.jsx
+│   │   │   │   └── InsightCard.jsx
+│   │   │   └── Toast.jsx
+│   │   │
+│   │   ├── pages/                          ← PAGE COMPONENTS
+│   │   │   ├── public/
+│   │   │   │   ├── LandingPage.jsx
+│   │   │   │   ├── Login.jsx
+│   │   │   │   ├── Register.jsx
+│   │   │   │   └── ForgotPassword.jsx
+│   │   │   ├── employee/
+│   │   │   │   ├── Dashboard.jsx
+│   │   │   │   ├── ApplyLeave.jsx
+│   │   │   │   ├── LeaveHistory.jsx
+│   │   │   │   ├── LeaveDetails.jsx
+│   │   │   │   ├── Calendar.jsx
+│   │   │   │   └── Profile.jsx
+│   │   │   ├── manager/
+│   │   │   │   ├── Dashboard.jsx
+│   │   │   │   ├── TeamCalendar.jsx
+│   │   │   │   └── TeamLeaves.jsx
+│   │   │   ├── admin/
+│   │   │   │   ├── Dashboard.jsx
+│   │   │   │   ├── Employees.jsx
+│   │   │   │   ├── EmployeeDetail.jsx
+│   │   │   │   ├── Departments.jsx
+│   │   │   │   ├── Policies.jsx
+│   │   │   │   ├── Holidays.jsx
+│   │   │   │   ├── Reports.jsx
+│   │   │   │   └── Settings.jsx
+│   │   │   ├── Notifications.jsx
+│   │   │   ├── AIAssistant.jsx
+│   │   │   └── NotFound.jsx
+│   │   │
+│   │   ├── utils/                          ← UTILITIES
+│   │   │   ├── constants.js               # App-wide constants
+│   │   │   ├── dateUtils.js               # Date formatting helpers
+│   │   │   ├── validators.js              # Client-side validation schemas
+│   │   │   └── formatters.js              # Number, currency formatters
+│   │   │
+│   │   └── assets/
+│   │       ├── images/
+│   │       └── icons/
+│   │
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── tailwind.config.js
+│   └── Dockerfile
+│
+├── server/                                 ← BACKEND (Node.js + Express)
+│   ├── src/
+│   │   ├── index.js                       # Server entry (Express init)
+│   │   ├── app.js                         # Express app config (middleware)
+│   │   │
+│   │   ├── config/                        ← CONFIGURATION
+│   │   │   ├── env.js                     # Environment variable loader
+│   │   │   ├── database.js                # Prisma client instance
+│   │   │   ├── redis.js                   # Redis client instance
+│   │   │   ├── email.js                   # Nodemailer transporter
+│   │   │   ├── storage.js                 # S3/MinIO config
+│   │   │   └── gemini.js                  # Gemini API client
+│   │   │
+│   │   ├── middleware/                    ← MIDDLEWARE
+│   │   │   ├── auth.js                    # JWT verification middleware
+│   │   │   ├── rbac.js                    # Role-based access control
+│   │   │   ├── validate.js                # Zod schema validation middleware
+│   │   │   ├── rateLimiter.js             # Rate limiting middleware
+│   │   │   ├── errorHandler.js            # Global error handler
+│   │   │   ├── upload.js                  # Multer file upload config
+│   │   │   └── logger.js                  # Request logging middleware
+│   │   │
+│   │   ├── routes/                        ← ROUTE DEFINITIONS
+│   │   │   ├── index.js                   # Route aggregator
+│   │   │   ├── auth.routes.js
+│   │   │   ├── user.routes.js
+│   │   │   ├── leave.routes.js
+│   │   │   ├── department.routes.js
+│   │   │   ├── holiday.routes.js
+│   │   │   ├── policy.routes.js
+│   │   │   ├── notification.routes.js
+│   │   │   ├── report.routes.js
+│   │   │   └── ai.routes.js
+│   │   │
+│   │   ├── controllers/                   ← REQUEST HANDLERS
+│   │   │   ├── auth.controller.js
+│   │   │   ├── user.controller.js
+│   │   │   ├── leave.controller.js
+│   │   │   ├── department.controller.js
+│   │   │   ├── holiday.controller.js
+│   │   │   ├── policy.controller.js
+│   │   │   ├── notification.controller.js
+│   │   │   ├── report.controller.js
+│   │   │   └── ai.controller.js
+│   │   │
+│   │   ├── services/                      ← BUSINESS LOGIC
+│   │   │   ├── auth.service.js            # JWT generation, password hashing
+│   │   │   ├── user.service.js            # User CRUD logic
+│   │   │   ├── leave.service.js           # Leave management logic
+│   │   │   ├── balance.service.js         # Leave balance calculation
+│   │   │   ├── policy.service.js          # Policy engine logic
+│   │   │   ├── notification.service.js    # Notification dispatch
+│   │   │   ├── email.service.js           # Email template + send
+│   │   │   ├── report.service.js          # Report generation
+│   │   │   ├── ai.service.js              # Gemini API integration
+│   │   │   ├── anomaly.service.js         # Anomaly detection logic
+│   │   │   └── audit.service.js           # Audit trail logging
+│   │   │
+│   │   ├── validators/                    ← ZOD SCHEMAS
+│   │   │   ├── auth.schema.js
+│   │   │   ├── user.schema.js
+│   │   │   ├── leave.schema.js
+│   │   │   ├── department.schema.js
+│   │   │   ├── holiday.schema.js
+│   │   │   └── policy.schema.js
+│   │   │
+│   │   ├── utils/                         ← UTILITIES
+│   │   │   ├── AppError.js                # Custom error class
+│   │   │   ├── asyncHandler.js            # Async route wrapper
+│   │   │   ├── dateUtils.js               # Date calculation helpers
+│   │   │   ├── pagination.js              # Pagination helper
+│   │   │   └── constants.js               # Server constants
+│   │   │
+│   │   └── socket/                        ← WEBSOCKET
+│   │       ├── index.js                   # Socket.io setup
+│   │       └── handlers.js                # Socket event handlers
+│   │
+│   ├── prisma/                            ← DATABASE
+│   │   ├── schema.prisma                  # Data model definition
+│   │   ├── migrations/                    # Auto-generated migrations
+│   │   └── seed.js                        # Seed script (initial data)
+│   │
+│   ├── tests/                             ← TESTS
+│   │   ├── unit/
+│   │   │   ├── auth.service.test.js
+│   │   │   ├── leave.service.test.js
+│   │   │   └── balance.service.test.js
+│   │   ├── integration/
+│   │   │   ├── auth.test.js
+│   │   │   ├── leave.test.js
+│   │   │   └── user.test.js
+│   │   └── setup.js                       # Test DB setup/teardown
+│   │
+│   ├── package.json
+│   ├── Dockerfile
+│   └── .env.example
+│
+├── e2e/                                    ← END-TO-END TESTS
+│   ├── tests/
+│   │   ├── auth.spec.js
+│   │   ├── leave-flow.spec.js
+│   │   └── admin-flow.spec.js
+│   ├── playwright.config.js
+│   └── package.json
+│
+├── docker-compose.yml                      # Full-stack Docker orchestration
+├── docker-compose.prod.yml                 # Production overrides
+├── nginx.conf                              # Reverse proxy config
+├── .env.example                            # Environment template
+├── .gitignore
+├── README.md                               # Project documentation
+└── LICENSE
+```
+
+### 12.2 Frontend File Path Reference
+
+| What | Path |
+|------|------|
+| Entry point | `client/src/main.jsx` |
+| Router | `client/src/App.jsx` |
+| Global styles | `client/src/index.css` |
+| API calls | `client/src/api/*.api.js` |
+| Custom hooks | `client/src/hooks/*.js` |
+| Global state | `client/src/context/*.jsx` |
+| Shared UI components | `client/src/components/ui/*.jsx` |
+| Layout components | `client/src/components/layout/*.jsx` |
+| Leave components | `client/src/components/leave/*.jsx` |
+| Chart components | `client/src/components/charts/*.jsx` |
+| AI components | `client/src/components/ai/*.jsx` |
+| Public pages | `client/src/pages/public/*.jsx` |
+| Employee pages | `client/src/pages/employee/*.jsx` |
+| Manager pages | `client/src/pages/manager/*.jsx` |
+| Admin pages | `client/src/pages/admin/*.jsx` |
+| Utilities | `client/src/utils/*.js` |
+
+### 12.3 Backend File Path Reference
+
+| What | Path |
+|------|------|
+| Server entry | `server/src/index.js` |
+| Express config | `server/src/app.js` |
+| Environment config | `server/src/config/env.js` |
+| DB client | `server/src/config/database.js` |
+| Routes | `server/src/routes/*.routes.js` |
+| Controllers | `server/src/controllers/*.controller.js` |
+| Business logic | `server/src/services/*.service.js` |
+| Validation schemas | `server/src/validators/*.schema.js` |
+| Middleware | `server/src/middleware/*.js` |
+| DB schema | `server/prisma/schema.prisma` |
+| DB seed | `server/prisma/seed.js` |
+| Unit tests | `server/tests/unit/*.test.js` |
+| Integration tests | `server/tests/integration/*.test.js` |
+
+---
+
+## 13. Tech Stack Summary
+
+### Frontend
+
+| Category | Technology | Version | Purpose |
+|----------|-----------|---------|---------|
+| UI Library | React | 19 | Component-based UI |
+| Build Tool | Vite | 8 | Fast dev/build |
+| Styling | Tailwind CSS | 4 | Utility-first CSS |
+| Routing | React Router | 7 | Client-side routing |
+| Server State | TanStack React Query | 5 | API data caching + mutations |
+| Forms | React Hook Form | 7 | Performant form handling |
+| Validation | Zod | 3 | Schema validation |
+| Charts | Recharts | 2 | Data visualization |
+| Icons | Lucide React | latest | Consistent icon set |
+| Calendar | FullCalendar | 6 | Leave calendar widget |
+| Date Utils | date-fns | 4 | Date formatting |
+| HTTP Client | Axios | 1 | API calls with interceptors |
+| Drag & Drop | dnd-kit | 6 | Drag interactions |
+| E2E Testing | Playwright | latest | Browser automation tests |
+| Unit Testing | Vitest | latest | Fast unit tests |
+
+### Backend
+
+| Category | Technology | Version | Purpose |
+|----------|-----------|---------|---------|
+| Runtime | Node.js | 22 LTS | JavaScript server |
+| Framework | Express | 5 | HTTP framework |
+| ORM | Prisma | 6 | Database toolkit |
+| Database | PostgreSQL | 16 | Primary data store |
+| Cache | Redis | 7 | Caching + sessions |
+| Auth | jsonwebtoken + bcrypt | latest | JWT + password hashing |
+| Validation | Zod | 3 | Request validation |
+| File Upload | Multer | latest | Multipart handling |
+| Email | Nodemailer | latest | Transactional emails |
+| WebSocket | Socket.io | 4 | Real-time notifications |
+| AI | Google Gemini API | latest | AI features |
+| Logging | Winston | 3 | Structured logging |
+| Security | Helmet + cors | latest | Security headers |
+| Rate Limit | express-rate-limit | latest | API rate limiting |
+| Testing | Vitest + Supertest | latest | Unit + integration tests |
+
+### Infrastructure
+
+| Category | Technology | Purpose |
+|----------|-----------|---------|
+| Containers | Docker + Docker Compose | Containerized deployment |
+| Reverse Proxy | Nginx | Load balancing + SSL |
+| CI/CD | GitHub Actions | Automated pipeline |
+| Monitoring | Prometheus + Grafana | Metrics + dashboards |
+| Logging | Winston + ELK Stack | Centralized logging |
+| File Storage | S3 / MinIO | Document uploads |
+
+---
+
+> [!IMPORTANT]
+> **This document is a discussion artifact.** No code has been written yet. Use this as a reference to discuss what features to prioritize, what tech stack decisions to finalize, and how to phase the implementation. Start with **Phase 1** once aligned.
+
+> [!TIP]
+> **Recommended First Steps:**
+> 1. Review this document and pick which features you want in v1.0
+> 2. Finalize the tech stack choices (especially backend: Express vs Fastify, PostgreSQL vs MongoDB)
+> 3. Decide on deployment target (free tier vs cloud)
+> 4. Start Phase 1: Backend setup + Auth + Database
