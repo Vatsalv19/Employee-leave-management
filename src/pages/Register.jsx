@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { departments } from "../data/mockData";
-import { Mail, Lock, User, Phone, Building2, UserPlus } from "lucide-react";
+import { Mail, Lock, User, Phone, Building2, UserPlus, AlertTriangle } from "lucide-react";
 
 export default function Register() {
   const { register } = useApp();
@@ -10,6 +10,7 @@ export default function Register() {
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", phone: "", departmentId: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState(null);
 
   function validate() {
     const e = {};
@@ -25,13 +26,20 @@ export default function Register() {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
+    setAuthError(null);
     if (Object.keys(errs).length > 0) return;
 
     setLoading(true);
-    const user = await register(form);
-    setLoading(false);
-
-    if (user) navigate("/login");
+    try {
+      const user = await register(form);
+      setLoading(false);
+      if (user) navigate("/login");
+    } catch (err) {
+      setLoading(false);
+      if (err?.code === "auth/configuration-not-found" || err?.message?.includes("CONFIGURATION_NOT_FOUND")) {
+        setAuthError("firebase-auth-not-enabled");
+      }
+    }
   }
 
   function handleChange(field, value) {
@@ -55,10 +63,27 @@ export default function Register() {
       </div>
       <div className="relative w-full max-w-md animate-scale-in">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-lg font-bold text-white shadow-xl shadow-primary-500/30">EL</div>
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-primary-500 to-primary-700 text-lg font-bold text-white shadow-xl shadow-primary-500/30">EL</div>
           <h1 className="text-2xl font-bold"><span className="gradient-text">Create Account</span></h1>
           <p className="mt-1 text-sm text-theme-secondary">Join ELMS to manage your leaves</p>
         </div>
+
+        {authError === "firebase-auth-not-enabled" && (
+          <div className="mb-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-amber-400 mb-1">Firebase Auth Setup Required</p>
+                <p className="text-amber-300/80 mb-2">Email/Password sign-in is not enabled.</p>
+                <ol className="text-amber-300/70 space-y-1 list-decimal list-inside text-xs">
+                  <li>Go to <a href="https://console.firebase.google.com/project/employee-leave-managemen-6d86c/authentication/providers" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-300">Firebase Console → Authentication</a></li>
+                  <li>Click "Email/Password" provider</li>
+                  <li>Enable it and click "Save"</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="glass-card rounded-2xl p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3">

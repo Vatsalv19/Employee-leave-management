@@ -55,19 +55,51 @@ function buildUserFromFirebase(firebaseUser) {
   const [firstFromName = "", ...rest] = displayName.split(" ").filter(Boolean);
   const lastFromName = rest.join(" ");
   const emailPrefix = (firebaseUser.email || "user").split("@")[0] || "user";
+  const firstName = firstFromName || emailPrefix;
+  const lastName = lastFromName || "";
+  const firstInitial = (firstName[0] || "U").toUpperCase();
+  const secondInitial = (lastName[0] || firstName[0] || "U").toUpperCase();
 
   return {
     id: `user-${Date.now()}`,
-    firstName: firstFromName || emailPrefix,
-    lastName: lastFromName || "User",
+    firstName,
+    lastName,
     email: firebaseUser.email || "",
     phone: "",
     role: "employee",
     departmentId: defaultDepartments[0]?.id || "dept-1",
     managerId: "user-7",
-    avatar: ((firstFromName || emailPrefix)[0] || "U").toUpperCase() + (lastFromName[0] || "S").toUpperCase(),
+    avatar: `${firstInitial}${secondInitial}`,
     joinedDate: new Date().toISOString().split("T")[0],
     isActive: true,
+  };
+}
+
+function normalizeExistingUser(existingUser, firebaseUser) {
+  const displayName = (firebaseUser?.displayName || "").trim();
+  const [firstFromDisplay = "", ...rest] = displayName.split(" ").filter(Boolean);
+  const lastFromDisplay = rest.join(" ");
+
+  const emailPrefix = (firebaseUser?.email || existingUser?.email || "user").split("@")[0] || "user";
+
+  const currentFirst = String(existingUser?.firstName || "").trim();
+  const currentLast = String(existingUser?.lastName || "").trim();
+
+  const firstName = currentFirst || firstFromDisplay || emailPrefix;
+
+  let lastName = currentLast;
+  const isPlaceholderLastName = currentLast.toLowerCase() === "user";
+  if (!lastName || isPlaceholderLastName) {
+    lastName = lastFromDisplay || "";
+  }
+
+  const avatar = `${(firstName[0] || "U").toUpperCase()}${(lastName[0] || firstName[0] || "U").toUpperCase()}`;
+
+  return {
+    ...existingUser,
+    firstName,
+    lastName,
+    avatar,
   };
 }
 
@@ -167,9 +199,23 @@ export function AppProvider({ children }) {
           let existingUser = await firestoreService.getUserByEmail(firebaseUser.email);
           
           if (existingUser) {
-            setCurrentUser(existingUser);
+            const normalizedUser = normalizeExistingUser(existingUser, firebaseUser);
+
+            if (
+              normalizedUser.firstName !== existingUser.firstName
+              || normalizedUser.lastName !== existingUser.lastName
+              || normalizedUser.avatar !== existingUser.avatar
+            ) {
+              await firestoreService.updateUser(existingUser.id, {
+                firstName: normalizedUser.firstName,
+                lastName: normalizedUser.lastName,
+                avatar: normalizedUser.avatar,
+              });
+            }
+
+            setCurrentUser(normalizedUser);
             // Load notifications for this user (direct query, not subscription)
-            const notifs = await firestoreService.getNotificationsByUser(existingUser.id);
+            const notifs = await firestoreService.getNotificationsByUser(normalizedUser.id);
             setNotifications(notifs);
           } else {
             // Create new user in Firestore
@@ -219,8 +265,21 @@ export function AppProvider({ children }) {
         return null;
       }
 
-      const appUser = existing || buildUserFromFirebase(credential.user);
-      if (!existing) {
+      let appUser = existing ? normalizeExistingUser(existing, credential.user) : buildUserFromFirebase(credential.user);
+
+      if (existing) {
+        if (
+          appUser.firstName !== existing.firstName
+          || appUser.lastName !== existing.lastName
+          || appUser.avatar !== existing.avatar
+        ) {
+          await firestoreService.updateUser(existing.id, {
+            firstName: appUser.firstName,
+            lastName: appUser.lastName,
+            avatar: appUser.avatar,
+          });
+        }
+      } else {
         await firestoreService.createUser(appUser);
         // Create default leave balances
         const newBalances = defaultLeaveTypes.filter(lt => lt.id !== "lt-7" && lt.id !== "lt-8").map((lt, i) => ({
@@ -558,6 +617,11 @@ export function AppProvider({ children }) {
         used: 0, pending: 0, carriedOver: 0,
       }));
       await firestoreService.createMultipleBalances(newBalances);
+      
+      // Refresh users list from Firestore
+      const users = await firestoreService.getAllUsers();
+      setAllUsers(users);
+      
       addToast("Employee added successfully", "success");
       return newUser;
     } catch (error) {
@@ -570,6 +634,11 @@ export function AppProvider({ children }) {
   const updateUser = useCallback(async (userId, updates) => {
     try {
       await firestoreService.updateUser(userId, updates);
+      
+      // Refresh users list from Firestore
+      const users = await firestoreService.getAllUsers();
+      setAllUsers(users);
+      
       if (currentUser?.id === userId) {
         setCurrentUser((prev) => ({ ...prev, ...updates }));
       }
