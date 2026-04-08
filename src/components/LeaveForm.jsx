@@ -24,20 +24,22 @@ export default function LeaveForm() {
 
   function validate() {
     const errs = {};
+    const effectiveEndDate = form.isHalfDay ? form.startDate : form.endDate;
+
     if (!form.leaveTypeId) errs.type = "Please select a leave type";
     if (!form.startDate) errs.startDate = "Start date is required";
-    if (!form.endDate) errs.endDate = "End date is required";
-    if (form.startDate && form.endDate && form.endDate < form.startDate) {
+    if (!form.isHalfDay && !form.endDate) errs.endDate = "End date is required";
+    if (form.startDate && effectiveEndDate && effectiveEndDate < form.startDate) {
       errs.endDate = "End date must be on or after start date";
     }
     if (!form.reason.trim()) errs.reason = "Please provide a reason";
 
     // Balance check
-    if (form.leaveTypeId && form.startDate && form.endDate) {
+    if (form.leaveTypeId && form.startDate && effectiveEndDate) {
       const remaining = getBalance(form.leaveTypeId);
       if (remaining !== null) {
         const start = new Date(form.startDate);
-        const end = new Date(form.endDate);
+        const end = new Date(effectiveEndDate);
         const days = form.isHalfDay ? 0.5 : Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
         if (days > remaining) errs.balance = `Not enough balance. Available: ${remaining} days`;
       }
@@ -69,7 +71,15 @@ export default function LeaveForm() {
   }
 
   function handleChange(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      if (field === "isHalfDay") {
+        return { ...prev, isHalfDay: value, endDate: value ? prev.startDate : prev.endDate };
+      }
+      if (field === "startDate" && prev.isHalfDay) {
+        return { ...prev, startDate: value, endDate: value };
+      }
+      return { ...prev, [field]: value };
+    });
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
     if (errors.balance) setErrors((prev) => ({ ...prev, balance: undefined }));
   }
@@ -117,7 +127,7 @@ export default function LeaveForm() {
               onChange={(e) => handleChange("isHalfDay", e.target.checked)}
               className="sr-only peer"
             />
-            <div className="w-9 h-5 rounded-full bg-slate-600 peer-checked:bg-primary-500 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
+            <div className="w-9 h-5 rounded-full bg-slate-600 peer-checked:bg-primary-500 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
           </label>
           <span className="text-sm text-theme-secondary flex items-center gap-1.5">
             <Clock className="w-4 h-4" /> Half-day leave
