@@ -31,6 +31,17 @@ import Notifications from "./pages/Notifications";
 import AIAssistant from "./pages/AIAssistant";
 import NotFound from "./pages/NotFound";
 
+function AuthBootScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-theme-surface">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-sm text-theme-secondary">Loading...</div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Authenticated Layout ── */
 function AppLayout() {
   return (
@@ -49,7 +60,8 @@ function AppLayout() {
 
 /* ── Route Guards ── */
 function ProtectedRoute({ children, requiredRoles }) {
-  const { currentUser } = useApp();
+  const { currentUser, authLoading, dataLoading } = useApp();
+  if (authLoading || dataLoading) return <AuthBootScreen />;
   if (!currentUser) return <Navigate to="/login" replace />;
   if (requiredRoles && !requiredRoles.includes(currentUser.role)) {
     const home = currentUser.role === "admin" ? "/admin" : currentUser.role === "manager" ? "/manager" : "/employee";
@@ -59,7 +71,8 @@ function ProtectedRoute({ children, requiredRoles }) {
 }
 
 function AuthRoute({ children }) {
-  const { currentUser } = useApp();
+  const { currentUser, authLoading, dataLoading } = useApp();
+  if (authLoading || dataLoading) return <AuthBootScreen />;
   if (currentUser) {
     const home = currentUser.role === "admin" ? "/admin" : currentUser.role === "manager" ? "/manager" : "/employee";
     return <Navigate to={home} replace />;
@@ -68,7 +81,8 @@ function AuthRoute({ children }) {
 }
 
 function RedirectHome() {
-  const { currentUser } = useApp();
+  const { currentUser, authLoading, dataLoading } = useApp();
+  if (authLoading || dataLoading) return <AuthBootScreen />;
   if (!currentUser) return <Navigate to="/login" replace />;
   const home = currentUser.role === "admin" ? "/admin" : currentUser.role === "manager" ? "/manager" : "/employee";
   return <Navigate to={home} replace />;

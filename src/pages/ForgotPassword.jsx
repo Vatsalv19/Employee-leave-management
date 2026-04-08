@@ -1,14 +1,22 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useApp } from "../context/AppContext";
 import { Mail, ArrowLeft, CheckCircle } from "lucide-react";
 
 export default function ForgotPassword() {
+  const { resetPassword } = useApp();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    if (email.trim()) setSent(true);
+    if (!email.trim()) return;
+
+    setLoading(true);
+    const ok = await resetPassword(email.trim());
+    if (ok) setSent(true);
+    setLoading(false);
   }
 
   return (
@@ -43,7 +51,7 @@ export default function ForgotPassword() {
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-muted" />
                   <input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} required className="input-field pl-10" />
                 </div>
-                <button type="submit" className="btn-primary w-full">Send Reset Link</button>
+                <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? "Sending..." : "Send Reset Link"}</button>
               </form>
               <p className="mt-4 text-center text-sm text-theme-secondary">
                 <Link to="/login" className="text-primary-400 font-medium hover:text-primary-300 inline-flex items-center gap-1">
