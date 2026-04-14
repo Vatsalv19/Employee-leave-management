@@ -81,7 +81,7 @@ The app uses the following collections:
 
 ## Initial Data Seeding
 
-When you first run the app with an empty Firestore database, it will automatically seed initial mock data (users, departments, leave types, holidays, etc.).
+The app no longer auto-seeds runtime data from local mock files. Populate your Firestore collections directly (or via an admin script) for production-like behavior.
 
 ## Troubleshooting
 
