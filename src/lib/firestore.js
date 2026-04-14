@@ -343,7 +343,7 @@ export function subscribeToSettings(callback) {
 }
 
 // ───────────────── DATA SEEDING ─────────────────
-export async function seedInitialData(mockData) {
+export async function seedInitialData(initialData) {
   try {
     // Check if data already exists
     const usersSnapshot = await getDocs(collection(db, COLLECTIONS.USERS));
@@ -355,56 +355,56 @@ export async function seedInitialData(mockData) {
     const batch = writeBatch(db);
 
     // Seed users
-    mockData.users.forEach((user) => {
+    initialData.users.forEach((user) => {
       const userRef = doc(db, COLLECTIONS.USERS, user.id);
       batch.set(userRef, { ...user, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
 
     // Seed departments
-    mockData.departments.forEach((dept) => {
+    initialData.departments.forEach((dept) => {
       const deptRef = doc(db, COLLECTIONS.DEPARTMENTS, dept.id);
       batch.set(deptRef, { ...dept, createdAt: serverTimestamp() });
     });
 
     // Seed leave types
-    mockData.leaveTypes.forEach((lt) => {
+    initialData.leaveTypes.forEach((lt) => {
       const ltRef = doc(db, COLLECTIONS.LEAVE_TYPES, lt.id);
       batch.set(ltRef, { ...lt, createdAt: serverTimestamp() });
     });
 
     // Seed holidays
-    mockData.holidays.forEach((h) => {
+    initialData.holidays.forEach((h) => {
       const hRef = doc(db, COLLECTIONS.HOLIDAYS, h.id);
       batch.set(hRef, { ...h, createdAt: serverTimestamp() });
     });
 
     // Seed leave balances
-    mockData.leaveBalances.forEach((lb) => {
+    initialData.leaveBalances.forEach((lb) => {
       const lbRef = doc(db, COLLECTIONS.LEAVE_BALANCES, lb.id);
       batch.set(lbRef, { ...lb, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
 
     // Seed leave requests
-    mockData.leaveRequests.forEach((lr) => {
+    initialData.leaveRequests.forEach((lr) => {
       const lrRef = doc(db, COLLECTIONS.LEAVE_REQUESTS, lr.id);
       batch.set(lrRef, { ...lr, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
 
     // Seed notifications
-    mockData.notifications.forEach((n) => {
+    initialData.notifications.forEach((n) => {
       const nRef = doc(db, COLLECTIONS.NOTIFICATIONS, n.id);
       batch.set(nRef, { ...n });
     });
 
     // Seed policies
-    mockData.policies.forEach((p) => {
+    initialData.policies.forEach((p) => {
       const pRef = doc(db, COLLECTIONS.POLICIES, p.id);
       batch.set(pRef, { ...p, createdAt: serverTimestamp() });
     });
 
     // Seed settings
     const settingsRef = doc(db, COLLECTIONS.SETTINGS, SETTINGS_DOC_ID);
-    batch.set(settingsRef, { ...mockData.settings, createdAt: serverTimestamp() });
+    batch.set(settingsRef, { ...initialData.settings, createdAt: serverTimestamp() });
 
     await batch.commit();
     console.log("Initial data seeded to Firestore");

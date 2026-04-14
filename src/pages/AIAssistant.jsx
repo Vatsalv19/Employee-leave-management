@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "../context/AppContext";
-import { Bot, Send, User, X } from "lucide-react";
+import { Bot, Send, User } from "lucide-react";
+import { askGeminiAboutLeaves, isGeminiConfigured } from "../lib/gemini";
 
 const AI_RESPONSES = {
   "leave balance": (user, ctx) => {
@@ -20,9 +21,9 @@ const AI_RESPONSES = {
     const lines = upcoming.map((h) => `• ${h.name} — ${new Date(h.date + "T00:00:00").toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric" })}${h.isOptional ? " (Optional)" : ""}`);
     return `Upcoming holidays:\n\n${lines.join("\n")}`;
   },
-  "pending": (user, ctx) => {
+  pending: (user, ctx) => {
     const pending = ctx.userLeaves.filter((l) => l.status === "Pending");
-    if (!pending.length) return "You have no pending leave requests. 🎉";
+    if (!pending.length) return "You have no pending leave requests.";
     const lines = pending.map((l) => `• ${l.type}: ${l.startDate} to ${l.endDate} (${l.totalDays} day${l.totalDays > 1 ? "s" : ""})`);
     return `You have ${pending.length} pending request(s):\n\n${lines.join("\n")}`;
   },
@@ -30,7 +31,7 @@ const AI_RESPONSES = {
   "policy": (user, ctx) => {
     return `Leave Policy Summary:\n\n• **Carry Over**: Up to 5 days, expires in 3 months\n• **Encashment**: Available with min balance of 10 days\n• **Documentation**: Required for Sick Leave (3+ days) and Maternity/Paternity\n• **Year**: January - December 2026`;
   },
-  hello: (user) => `Hello ${user.firstName}! 👋 I'm your ELMS AI Assistant. I can help you with:\n\n• Checking your **leave balance**\n• Viewing **upcoming holidays**\n• Checking **pending** requests\n• Understanding **leave policies**\n• How to **apply** for leave\n\nJust ask me anything!`,
+  hello: (user) => `Hello ${user.firstName}! I can help you with leave balance, holidays, pending requests, policies, and leave application steps.`,
   default: (user) => `I'm not sure I understand that, ${user.firstName}. Try asking about:\n\n• "leave balance" — View your available leaves\n• "holidays" — See upcoming holidays\n• "pending" — Check pending requests\n• "policy" — Learn about leave policies\n• "apply" — How to apply for leave`,
 };
 
@@ -47,8 +48,12 @@ function matchResponse(input, user, ctx) {
 
 export default function AIAssistant() {
   const { currentUser, userLeaves, userBalances, leaveTypes, holidays } = useApp();
+  const geminiConfigured = isGeminiConfigured();
   const [messages, setMessages] = useState([
-    { role: "ai", text: `Hi ${currentUser?.firstName || "there"}! 👋 I'm your ELMS AI Assistant. Ask me about your leave balance, holidays, pending requests, or policies!` },
+    {
+      role: "ai",
+      text: `Hi ${currentUser?.firstName || "there"}! I'm your ELMS AI Assistant powered by Gemini 2.5 Flash. Ask me about your leave balance, holidays, pending requests, or policies.`,
+    },
   ]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
@@ -56,19 +61,44 @@ export default function AIAssistant() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, typing]);
 
-  function handleSend() {
+  async function handleSend() {
     if (!input.trim()) return;
     const userMsg = input.trim();
-    setMessages((prev) => [...prev, { role: "user", text: userMsg }]);
+    const nextMessages = [...messages, { role: "user", text: userMsg }];
+    setMessages(nextMessages);
     setInput("");
     setTyping(true);
 
-    setTimeout(() => {
+    try {
       const ctx = { userLeaves, userBalances, leaveTypes, holidays };
-      const response = matchResponse(userMsg, currentUser, ctx);
+      let response;
+
+      if (geminiConfigured) {
+        response = await askGeminiAboutLeaves({
+          question: userMsg,
+          currentUser,
+          contextData: ctx,
+          history: nextMessages,
+        });
+      } else {
+        response = "Gemini API key is missing. Add VITE_GEMINI_API_KEY in .env and restart the app.";
+      }
+
       setMessages((prev) => [...prev, { role: "ai", text: response }]);
+    } catch (error) {
+      console.error("Gemini assistant error:", error);
+      const ctx = { userLeaves, userBalances, leaveTypes, holidays };
+      const fallback = matchResponse(userMsg, currentUser || { firstName: "there" }, ctx);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          text: `I couldn't reach Gemini right now, so here's a local answer:\n\n${fallback}`,
+        },
+      ]);
+    } finally {
       setTyping(false);
-    }, 800 + Math.random() * 700);
+    }
   }
 
   function handleKeyDown(e) {
@@ -81,7 +111,10 @@ export default function AIAssistant() {
         <h2 className="text-2xl font-bold text-theme-primary flex items-center gap-2">
           <Bot className="w-6 h-6 text-primary-400" /> AI Assistant
         </h2>
-        <p className="mt-1 text-sm text-theme-secondary">Ask me anything about your leaves, balance, or policies</p>
+        <p className="mt-1 text-sm text-theme-secondary">Gemini 2.5 Flash is enabled for leave-aware assistance</p>
+        {!geminiConfigured && (
+          <p className="mt-2 text-xs text-amber-400">Gemini key not found. Add VITE_GEMINI_API_KEY in .env to enable AI responses.</p>
+        )}
       </div>
 
       {/* Chat Messages */}

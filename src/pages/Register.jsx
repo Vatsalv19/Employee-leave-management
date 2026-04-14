@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useApp } from "../context/AppContext";
-import { departments } from "../data/mockData";
 import { Mail, Lock, User, Phone, Building2, UserPlus, AlertTriangle } from "lucide-react";
 
 export default function Register() {
-  const { register } = useApp();
+  const { register, departments } = useApp();
   const navigate = useNavigate();
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", phone: "", departmentId: "" });
   const [errors, setErrors] = useState({});

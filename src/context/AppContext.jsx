@@ -7,23 +7,19 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
-import {
-  users as defaultUsers,
-  initialLeaveRequests,
-  leaveBalances as defaultBalances,
-  initialNotifications,
-  holidays as defaultHolidays,
-  departments as defaultDepartments,
-  leaveTypes as defaultLeaveTypes,
-  leavePolicies as defaultPolicies,
-  companySettings as defaultSettings,
-  getDepartmentName,
-  getUserFullName,
-} from "../data/mockData";
 import { auth } from "../lib/firebase";
 import * as firestoreService from "../lib/firestore";
 
 const AppContext = createContext(null);
+const LEAVE_YEAR = 2026;
+const DEFAULT_SETTINGS = {
+  companyName: "",
+  leaveYear: "",
+  autoApproveUnder: 0,
+  emailNotifications: true,
+  timezone: "UTC",
+  currency: "USD",
+};
 
 function getFirebaseAuthErrorMessage(errorCode) {
   switch (errorCode) {
@@ -50,7 +46,7 @@ function getFirebaseAuthErrorMessage(errorCode) {
   }
 }
 
-function buildUserFromFirebase(firebaseUser) {
+function buildUserFromFirebase(firebaseUser, departmentId = "") {
   const displayName = (firebaseUser.displayName || "").trim();
   const [firstFromName = "", ...rest] = displayName.split(" ").filter(Boolean);
   const lastFromName = rest.join(" ");
@@ -67,7 +63,7 @@ function buildUserFromFirebase(firebaseUser) {
     email: firebaseUser.email || "",
     phone: "",
     role: "employee",
-    departmentId: defaultDepartments[0]?.id || "dept-1",
+    departmentId,
     managerId: "user-7",
     avatar: `${firstInitial}${secondInitial}`,
     joinedDate: new Date().toISOString().split("T")[0],
@@ -115,9 +111,41 @@ export function AppProvider({ children }) {
   const [departments, setDepartments] = useState([]);
   const [leaveTypesState, setLeaveTypes] = useState([]);
   const [policies, setPolicies] = useState([]);
-  const [settings, setSettings] = useState(defaultSettings);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [toasts, setToasts] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const getDepartmentName = useCallback((departmentId) => {
+    if (!departmentId) return "Unknown";
+    return departments.find((d) => d.id === departmentId)?.name || "Unknown";
+  }, [departments]);
+
+  const getUserFullName = useCallback((user) => {
+    if (!user) return "Unknown User";
+    const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+    return fullName || user.email || "Unknown User";
+  }, []);
+
+  const createDefaultLeaveBalances = useCallback(async (userId) => {
+    const allLeaveTypes = await firestoreService.getAllLeaveTypes();
+    const typesWithAllocation = allLeaveTypes.filter((lt) => Number(lt.defaultDays) > 0 && lt.isActive !== false);
+
+    if (!typesWithAllocation.length) {
+      return;
+    }
+
+    const newBalances = typesWithAllocation.map((lt) => ({
+      userId,
+      leaveTypeId: lt.id,
+      year: LEAVE_YEAR,
+      totalAllocated: Number(lt.defaultDays) || 0,
+      used: 0,
+      pending: 0,
+      carriedOver: 0,
+    }));
+
+    await firestoreService.createMultipleBalances(newBalances);
+  }, []);
 
   // ── Toast ──
   const addToast = useCallback((message, type = "info") => {
@@ -132,19 +160,6 @@ export function AppProvider({ children }) {
   // ── Load Initial Data from Firestore ──
   const loadData = useCallback(async () => {
     try {
-      // First seed if empty
-      await firestoreService.seedInitialData({
-        users: defaultUsers,
-        departments: defaultDepartments,
-        leaveTypes: defaultLeaveTypes,
-        holidays: defaultHolidays,
-        leaveBalances: defaultBalances,
-        leaveRequests: initialLeaveRequests,
-        notifications: initialNotifications,
-        policies: defaultPolicies,
-        settings: defaultSettings,
-      });
-
       // Load all data using direct queries (not subscriptions)
       const [users, requests, balances, hols, depts, types, pols, sett] = await Promise.all([
         firestoreService.getAllUsers(),
@@ -164,7 +179,7 @@ export function AppProvider({ children }) {
       setDepartments(depts);
       setLeaveTypes(types);
       setPolicies(pols);
-      if (sett) setSettings(sett);
+      setSettings(sett || DEFAULT_SETTINGS);
 
       setDataLoading(false);
     } catch (error) {
@@ -219,21 +234,11 @@ export function AppProvider({ children }) {
             setNotifications(notifs);
           } else {
             // Create new user in Firestore
-            const newUser = buildUserFromFirebase(firebaseUser);
+            const newUser = buildUserFromFirebase(firebaseUser, departments[0]?.id || "");
             await firestoreService.createUser(newUser);
             
             // Create default leave balances for new user
-            const newBalances = defaultLeaveTypes.filter(lt => lt.id !== "lt-7" && lt.id !== "lt-8").map((lt, i) => ({
-              id: `lb-new-${Date.now()}-${i}`,
-              userId: newUser.id,
-              leaveTypeId: lt.id,
-              year: 2026,
-              totalAllocated: lt.defaultDays,
-              used: 0,
-              pending: 0,
-              carriedOver: 0,
-            }));
-            await firestoreService.createMultipleBalances(newBalances);
+            await createDefaultLeaveBalances(newUser.id);
             
             setCurrentUser(newUser);
             setNotifications([]);
@@ -251,7 +256,7 @@ export function AppProvider({ children }) {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [departments, createDefaultLeaveBalances]);
 
   // ── Auth ──
   const login = useCallback(async (email, password) => {
@@ -265,7 +270,9 @@ export function AppProvider({ children }) {
         return null;
       }
 
-      let appUser = existing ? normalizeExistingUser(existing, credential.user) : buildUserFromFirebase(credential.user);
+      let appUser = existing
+        ? normalizeExistingUser(existing, credential.user)
+        : buildUserFromFirebase(credential.user, departments[0]?.id || "");
 
       if (existing) {
         if (
@@ -282,17 +289,7 @@ export function AppProvider({ children }) {
       } else {
         await firestoreService.createUser(appUser);
         // Create default leave balances
-        const newBalances = defaultLeaveTypes.filter(lt => lt.id !== "lt-7" && lt.id !== "lt-8").map((lt, i) => ({
-          id: `lb-new-${Date.now()}-${i}`,
-          userId: appUser.id,
-          leaveTypeId: lt.id,
-          year: 2026,
-          totalAllocated: lt.defaultDays,
-          used: 0,
-          pending: 0,
-          carriedOver: 0,
-        }));
-        await firestoreService.createMultipleBalances(newBalances);
+        await createDefaultLeaveBalances(appUser.id);
       }
 
       setCurrentUser(appUser);
@@ -322,7 +319,7 @@ export function AppProvider({ children }) {
       }
       return null;
     }
-  }, [addToast]);
+  }, [addToast, departments, createDefaultLeaveBalances]);
 
   const logout = useCallback(async () => {
     try {
@@ -366,17 +363,7 @@ export function AppProvider({ children }) {
       await firestoreService.createUser(newUser);
 
       // Create default balances for new user
-      const newBalances = defaultLeaveTypes.filter(lt => lt.id !== "lt-7" && lt.id !== "lt-8").map((lt, i) => ({
-        id: `lb-new-${Date.now()}-${i}`,
-        userId: newUser.id,
-        leaveTypeId: lt.id,
-        year: 2026,
-        totalAllocated: lt.defaultDays,
-        used: 0,
-        pending: 0,
-        carriedOver: 0,
-      }));
-      await firestoreService.createMultipleBalances(newBalances);
+      await createDefaultLeaveBalances(newUser.id);
 
       // Firebase signs user in after create; sign out to preserve existing app flow.
       await signOut(auth);
@@ -402,7 +389,7 @@ export function AppProvider({ children }) {
       }
       return null;
     }
-  }, [addToast]);
+  }, [addToast, createDefaultLeaveBalances]);
 
   const resetPassword = useCallback(async (email) => {
     try {
@@ -486,7 +473,7 @@ export function AppProvider({ children }) {
 
       // Update pending balance
       const userBalance = leaveBalances.find(
-        (b) => b.userId === currentUser.id && b.leaveTypeId === leaveData.leaveTypeId && b.year === 2026
+        (b) => b.userId === currentUser.id && b.leaveTypeId === leaveData.leaveTypeId && b.year === LEAVE_YEAR
       );
       if (userBalance) {
         await firestoreService.updateLeaveBalance(userBalance.id, {
@@ -507,7 +494,7 @@ export function AppProvider({ children }) {
       console.error("Error creating leave request:", error);
       addToast("Failed to submit leave request", "error");
     }
-  }, [currentUser, leaveBalances, addToast, addNotification]);
+  }, [currentUser, leaveBalances, addToast, addNotification, getDepartmentName, getUserFullName]);
 
   const approveLeave = useCallback(async (leaveId) => {
     const leave = leaveRequests.find((lr) => lr.id === leaveId);
@@ -521,7 +508,7 @@ export function AppProvider({ children }) {
 
       // Update balance: move from pending to used
       const userBalance = leaveBalances.find(
-        (b) => b.userId === leave.userId && b.leaveTypeId === leave.leaveTypeId && b.year === 2026
+        (b) => b.userId === leave.userId && b.leaveTypeId === leave.leaveTypeId && b.year === LEAVE_YEAR
       );
       if (userBalance) {
         await firestoreService.updateLeaveBalance(userBalance.id, {
@@ -551,7 +538,7 @@ export function AppProvider({ children }) {
 
       // Remove from pending balance
       const userBalance = leaveBalances.find(
-        (b) => b.userId === leave.userId && b.leaveTypeId === leave.leaveTypeId && b.year === 2026
+        (b) => b.userId === leave.userId && b.leaveTypeId === leave.leaveTypeId && b.year === LEAVE_YEAR
       );
       if (userBalance) {
         await firestoreService.updateLeaveBalance(userBalance.id, {
@@ -577,7 +564,7 @@ export function AppProvider({ children }) {
 
       // Remove from pending balance
       const userBalance = leaveBalances.find(
-        (b) => b.userId === leave.userId && b.leaveTypeId === leave.leaveTypeId && b.year === 2026
+        (b) => b.userId === leave.userId && b.leaveTypeId === leave.leaveTypeId && b.year === LEAVE_YEAR
       );
       if (userBalance) {
         await firestoreService.updateLeaveBalance(userBalance.id, {
@@ -608,15 +595,7 @@ export function AppProvider({ children }) {
     try {
       await firestoreService.createUser(newUser);
 
-      const newBalances = defaultLeaveTypes.filter(lt => lt.id !== "lt-7" && lt.id !== "lt-8").map((lt, i) => ({
-        id: `lb-new-${Date.now()}-${i}`,
-        userId: newUser.id,
-        leaveTypeId: lt.id,
-        year: 2026,
-        totalAllocated: lt.defaultDays,
-        used: 0, pending: 0, carriedOver: 0,
-      }));
-      await firestoreService.createMultipleBalances(newBalances);
+      await createDefaultLeaveBalances(newUser.id);
       
       // Refresh users list from Firestore
       const users = await firestoreService.getAllUsers();
@@ -629,7 +608,7 @@ export function AppProvider({ children }) {
       addToast("Failed to add employee", "error");
       return null;
     }
-  }, [addToast]);
+  }, [addToast, createDefaultLeaveBalances]);
 
   const updateUser = useCallback(async (userId, updates) => {
     try {
@@ -746,7 +725,7 @@ export function AppProvider({ children }) {
     : [];
 
   const userBalances = currentUser
-    ? leaveBalances.filter((b) => b.userId === currentUser.id && b.year === 2026)
+    ? leaveBalances.filter((b) => b.userId === currentUser.id && b.year === LEAVE_YEAR)
     : [];
 
   const totalBalance = userBalances.reduce((sum, b) => sum + b.totalAllocated + b.carriedOver, 0);
